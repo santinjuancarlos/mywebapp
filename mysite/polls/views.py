@@ -1,16 +1,14 @@
-from django.shortcuts import get_object_or_404,render
+from django.shortcuts import get_object_or_404,render,redirect
 from django.http import HttpResponse,HttpResponseRedirect
 from django.urls import reverse
+from django.views.generic import ListView
 #import json
 from .models import Question,Choice
 from django.template import loader
+from .forms import QuestionForm
 
 # Create your views here.
-'''def index(request):
-    questions=Question.objects.all()
-    latest_question_list = Question.objects.order_by('-pub_date')[:5]
-    output = ', '.join([q.question_text for q in questions])
-    return HttpResponse(output)'''
+'''
 def index(request):
     latest_question_list = Question.objects.order_by('-pub_date')[:5]
     template = loader.get_template('polls/index.html')
@@ -19,7 +17,20 @@ def index(request):
         'ultimas_preguntas': latest_question_list,
     }
     return render(request, 'polls/index.html', context)
-    #return HttpResponse(template.render(context, request))
+'''
+class IndexView(ListView):
+    template_name = 'polls/index.html'
+    context_object_name = 'ultimas_preguntas'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['mensaje'] = 'Lista de preguntas'
+        return context
+
+    def get_queryset(self):
+        """Return the last five published questions."""
+        query=Question.objects.order_by('-pub_date')[:5]
+        return query
 
 '''def hola_dos(request):
     return HttpResponse(str(datetime))'''
@@ -49,3 +60,21 @@ def vote(request, question_id):
         # with POST data. This prevents data from being posted twice if a
         # user hits the Back button.
         return HttpResponseRedirect(reverse('polls:results', args=(question.id,)))
+
+def add_or_change_question(request, question_id=None):
+    question = None
+    if question_id:
+        question = get_object_or_404(Question, pk=question_id)
+        if request.method == "POST":
+            form = QuestionForm(
+                data=request.POST,
+                files=request.FILES,
+                instance=question
+            )
+            if form.is_valid():
+                question = form.save()
+                return HttpResponseRedirect(reverse("polls:detail", args=(question.id,)))
+        else:
+            form = QuestionForm(instance=question)
+    context = {"question": question, "form": form}
+    return render(request, "polls/polls_form.html", context)
